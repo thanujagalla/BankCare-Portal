@@ -1,0 +1,6 @@
+{
+  "name": "BankCare Portal",
+  "description": "Comprehensive premium digital portal for Indian banking, helping customers navigate procedures, search documents, book tokens, and interact with an AI Banking Assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
