@@ -12,6 +12,17 @@ import CustomerSupport from './components/CustomerSupport';
 import ContactSection from './components/ContactSection';
 import Dashboard from './components/Dashboard';
 import { Landmark, Globe, User, Bell, Building2, Calendar, Phone, Shield, Cpu, ChevronRight } from 'lucide-react';
+import { db, handleFirestoreError, OperationType } from './firebase';
+import { collection, doc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore';
+
+const getGuestId = () => {
+  let gid = localStorage.getItem('bankcare_guest_id');
+  if (!gid) {
+    gid = 'guest_' + Math.random().toString(36).substring(2, 11);
+    localStorage.setItem('bankcare_guest_id', gid);
+  }
+  return gid;
+};
 
 export default function App() {
   const [lang, setLang] = useState<Language>('en');
@@ -20,6 +31,7 @@ export default function App() {
   // Shared persistable states
   const [activeTokens, setActiveTokens] = useState<BookingType[]>([]);
   const [savedChecklists, setSavedChecklists] = useState<{ [key: string]: string[] }>({});
+  const [loading, setLoading] = useState(true);
 
   // Cross-component filters state
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,24 +39,107 @@ export default function App() {
 
   const t = TRANSLATIONS[lang];
 
-  // Load mocks initially
+  // Load from firestore initially
   useEffect(() => {
-    // Initial static placeholder or empty state
+    const loadFirebaseData = async () => {
+      const guestId = getGuestId();
+      setLoading(true);
+      try {
+        // Load Bookings
+        const bookingsQuery = query(
+          collection(db, 'bookings'),
+          where('guestId', '==', guestId)
+        );
+        const bookingsSnap = await getDocs(bookingsQuery);
+        const loadedBookings: BookingType[] = [];
+        bookingsSnap.forEach((doc) => {
+          const data = doc.data();
+          loadedBookings.push({
+            id: data.id,
+            tokenNumber: data.tokenNumber,
+            name: data.name,
+            mobile: data.mobile,
+            email: data.email,
+            bankId: data.bankId,
+            branchName: data.branchName,
+            serviceType: data.serviceType,
+            date: data.date,
+            timeSlot: data.timeSlot,
+            qrCodeUrl: data.qrCodeUrl,
+            status: data.status,
+            positionInQueue: data.positionInQueue,
+          });
+        });
+        setActiveTokens(loadedBookings);
+
+        // Load Checklists
+        const checklistsQuery = query(
+          collection(db, 'checklists'),
+          where('guestId', '==', guestId)
+        );
+        const checklistsSnap = await getDocs(checklistsQuery);
+        const loadedChecklists: { [key: string]: string[] } = {};
+        checklistsSnap.forEach((doc) => {
+          const data = doc.data();
+          if (data.id) {
+            loadedChecklists[data.id] = data.checkedItems || [];
+          }
+        });
+        setSavedChecklists(loadedChecklists);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.LIST, 'bookings/checklists');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFirebaseData();
   }, []);
 
-  const handleBookToken = (newToken: BookingType) => {
+  const handleBookToken = async (newToken: BookingType) => {
     setActiveTokens((prev) => [newToken, ...prev]);
+
+    const guestId = getGuestId();
+    const docPath = `bookings/${newToken.id}`;
+    try {
+      await setDoc(doc(db, 'bookings', newToken.id), {
+        ...newToken,
+        guestId
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, docPath);
+    }
   };
 
-  const handleCancelToken = (id: string) => {
+  const handleCancelToken = async (id: string) => {
     setActiveTokens((prev) => prev.filter(t => t.id !== id));
+
+    const docPath = `bookings/${id}`;
+    try {
+      await deleteDoc(doc(db, 'bookings', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, docPath);
+    }
   };
 
-  const handleChecklistUpdate = (id: string, list: string[]) => {
+  const handleChecklistUpdate = async (id: string, list: string[]) => {
     setSavedChecklists((prev) => ({
       ...prev,
       [id]: list
     }));
+
+    const guestId = getGuestId();
+    const docId = `${guestId}_${id}`;
+    const docPath = `checklists/${docId}`;
+    try {
+      await setDoc(doc(db, 'checklists', docId), {
+        id,
+        checkedItems: list,
+        guestId
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, docPath);
+    }
   };
 
   const toggleLanguage = () => {

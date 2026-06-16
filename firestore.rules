@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened ID helper
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    function incoming() { 
+      return request.resource.data; 
+    }
+
+    // TokenBooking validation helper
+    function isValidTokenBooking(data) {
+      return data.keys().hasAll(['id', 'tokenNumber', 'name', 'mobile', 'email', 'bankId', 'branchName', 'serviceType', 'date', 'timeSlot', 'qrCodeUrl', 'status', 'positionInQueue']) &&
+             data.keys().size() == 13 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.tokenNumber is string && data.tokenNumber.size() <= 100 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.mobile is string && data.mobile.size() == 10 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.bankId is string && data.bankId.size() <= 50 &&
+             data.branchName is string && data.branchName.size() <= 200 &&
+             data.serviceType is string && data.serviceType.size() <= 200 &&
+             data.date is string && data.date.size() <= 50 &&
+             data.timeSlot is string && data.timeSlot.size() <= 50 &&
+             data.qrCodeUrl is string && data.qrCodeUrl.size() <= 500 &&
+             data.status in ['waiting', 'called', 'completed'] &&
+             data.positionInQueue is int;
+    }
+
+    // SavedChecklist validation helper
+    function isValidSavedChecklist(data) {
+      return data.keys().hasAll(['id', 'checkedItems']) &&
+             data.keys().size() == 2 &&
+             data.id is string && data.id.size() <= 100 &&
+             data.checkedItems is list && data.checkedItems.size() <= 100;
+    }
+
+    // Bookings Collection Rules
+    match /bookings/{bookingId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidId(bookingId) && isValidTokenBooking(incoming()) && incoming().id == bookingId;
+      allow update: if isValidId(bookingId) && isValidTokenBooking(incoming()) && incoming().id == bookingId;
+      allow delete: if isValidId(bookingId);
+    }
+
+    // Checklists Collection Rules
+    match /checklists/{checklistId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidId(checklistId) && isValidSavedChecklist(incoming()) && incoming().id == checklistId;
+      allow update: if isValidId(checklistId) && isValidSavedChecklist(incoming()) && incoming().id == checklistId;
+      allow delete: if isValidId(checklistId);
+    }
+  }
+}

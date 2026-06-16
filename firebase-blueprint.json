@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "TokenBooking": {
+      "title": "TokenBooking",
+      "description": "Virtual queue slot and appointment token details booked by citizens",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique booking identifier"
+        },
+        "tokenNumber": {
+          "type": "string",
+          "description": "Generated formal alphanumeric ticket token number"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the applicant"
+        },
+        "mobile": {
+          "type": "string",
+          "description": "Ten digit mobile number of the applicant"
+        },
+        "email": {
+          "type": "string",
+          "description": "Verified email address of the applicant"
+        },
+        "bankId": {
+          "type": "string",
+          "description": "ID of the target banking brand"
+        },
+        "branchName": {
+          "type": "string",
+          "description": "Specific physical branch name"
+        },
+        "serviceType": {
+          "type": "string",
+          "description": "Formal banking service requested"
+        },
+        "date": {
+          "type": "string",
+          "description": "Target date of appointment"
+        },
+        "timeSlot": {
+          "type": "string",
+          "description": "Target time slot or time range"
+        },
+        "qrCodeUrl": {
+          "type": "string",
+          "description": "URL to the generated verification ticket QR code vector"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "called", "completed"],
+          "description": "Current status of token in active physical queues"
+        },
+        "positionInQueue": {
+          "type": "integer",
+          "description": "Live position index indicating how many tokens are ahead"
+        }
+      },
+      "required": ["id", "tokenNumber", "name", "mobile", "email", "bankId", "branchName", "serviceType", "date", "timeSlot", "qrCodeUrl", "status", "positionInQueue"]
+    },
+    "SavedChecklist": {
+      "title": "SavedChecklist",
+      "description": "Saved document checklists for individual document requirements",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Draft document checklist identifier (e.g. pan-card)"
+        },
+        "checkedItems": {
+          "type": "array",
+          "description": "List of finished checkmarks or criteria IDs"
+        }
+      },
+      "required": ["id", "checkedItems"]
+    }
+  },
+  "firestore": {
+    "/bookings/{bookingId}": {
+      "schema": "TokenBooking",
+      "description": "Collection of booked appointments"
+    },
+    "/checklists/{checklistId}": {
+      "schema": "SavedChecklist",
+      "description": "Saved user checklists for different identity operations"
+    }
+  }
+}
